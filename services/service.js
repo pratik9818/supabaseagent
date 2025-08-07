@@ -8,7 +8,7 @@ class Agent{
     constructor(){
         this.userdb = pool.connect();
         this.aimodal = new CohereClientV2({
-            token:'OFdL2T9rZeenNeQkVItIoowM66YY429w0NISqIaf'
+            token:''
         })
     }
     userDbConnection = async ()=>{
