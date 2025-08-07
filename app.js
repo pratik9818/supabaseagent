@@ -5,7 +5,6 @@ const db = require('./database/db')
 db()
 app.listen(port, ()=>{
     console.log(`server is running at ${port} `);
-    
 })
 
 // login via google
