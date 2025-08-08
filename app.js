@@ -2,13 +2,15 @@ const express = require('express');
 const app = express();
 const port = 3000;
 const db = require('./database/db')
-db()
+const route = require('./router/routes')
+// db()
+app.use('/api',route)
 app.listen(port, ()=>{
     console.log(`server is running at ${port} `);
 })
 
 // login via google
-// put their supbase crendentilas
+// USER put their supbase crendentilas
 // chat with agent
 //           based on user input llm think 
 //           give sql 
@@ -24,5 +26,3 @@ app.listen(port, ()=>{
          * store in db 
          * query excute to db 
          */
-//DpXSA3CN2kw1Hc5W
-//mongodb+srv://pratiksingh212001:DpXSA3CN2kw1Hc5W@cluster0.7owzguo.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0

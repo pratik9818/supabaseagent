@@ -1,39 +1,109 @@
-//crate conneciton to user db
-//give user query to modal to generae sql or give acces to tool
-//modal excuate sql 
-const pool = require('../database/userdb')
-const {CohereClientV2} = require('cohere-ai')
-const queryTool = require('../tool/queryPostgres')
-class Agent{
-    constructor(){
-        this.userdb = pool.connect();
-        this.aimodal = new CohereClientV2({
-            token:''
-        })
-    }
-    userDbConnection = async ()=>{
+const { CohereClientV2 } = require('cohere-ai');
+const queryTool = require('../tool/tool'); // Your tool definition
+const { Pool } = require('pg');
 
-    }
+const pool = new Pool({
+  user: "postgres",
+  host: '',
+  database: "postgres",
+  password: '',
+  port: 5432,
+});
 
-    queryExcuation = async (query)=>{
-        const response = await cohereAi.chat({
-    model: 'command-a-03-2025',
-    messages: [
-      {
-        role: 'system',
-        content: `you are the agent who can create sql query and excuate in postgress database based on query`
-      },
-      {
-        role: 'user',
-        content: query
-      }
-    ],
-    tools: [queryTool],
-    // temperature: 0.8
-  })
-  console.log(response.message);
+async function runQuery({ query }) {
+  console.log(query, 'modal generated query');
 
-  return response.message.content[0].text;
+  try {
+    await pool.connect()
+    const result = await pool.query(query);
+    console.log(result);
 
-    }
+    return JSON.stringify(result.rows);
+  } catch (err) {
+    return `Error running query: ${err}`;
+  }
 }
+
+class Agent {
+  constructor() {
+    this.aimodal = new CohereClientV2({
+      token: ''
+    });
+  }
+
+  async queryExecution(userQuery) {
+    // Step 1: Call Cohere to see if it wants to use a tool
+    const initialResponse = await this.aimodal.chat({
+      model: 'command-a-03-2025',
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert SQL agent. generate SELECT queries and execute them on a PostgreSQL database.`
+        },
+        {
+          role: 'user',
+          content: userQuery
+        }
+      ],
+      tools: [queryTool],
+    });
+
+    const message = initialResponse.message;
+    console.log(initialResponse);
+
+    console.log(message);
+
+    // Step 2: Check if tool is being called
+    if (message.toolCalls && message.toolCalls.length > 0) {
+      const toolCall = message.toolCalls[0].function; // Only handling 1 tool for now
+      console.log(toolCall);
+
+      if (toolCall.name == 'run_postgres_query') {
+        console.log(toolCall.arguments);
+
+        const queryParam = JSON.parse(toolCall.arguments).query;
+        console.log(queryParam);
+
+        // Step 3: Run the SQL using your tool function
+        const queryResult = await runQuery({ query: queryParam });
+        console.log(queryResult, 'query result');
+        console.log(initialResponse.message.toolCalls[0].id);
+
+        // Step 4: Send result back to the model to get final answer
+        const finalResponse = await this.aimodal.chat({
+          model: 'command-a-03-2025',
+          messages: [
+            {
+              role: 'system',
+              content: `You are an expert SQL agent. generate SELECT queries and execute them on a PostgreSQL database.`
+            },
+            {
+              role: 'user',
+              content: userQuery
+            },
+            {
+              role: 'assistant',
+              content: initialResponse.message.content, // ✅ the generated assistant reply
+              toolCalls: initialResponse.message.toolCalls
+            },
+            {
+              role: 'tool',
+              toolCallId: initialResponse.message.toolCalls[0].id,
+              content: queryResult
+            }
+          ]
+        });
+
+        console.log(finalResponse);
+
+        return finalResponse.message.content[0].text;
+      } else {
+        return "Unknown tool requested.";
+      }
+    } else {
+      return message.content[0]?.text || "No tool used or no response generated.";
+    }
+  }
+}
+
+module.exports = Agent;

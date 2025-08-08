@@ -3,11 +3,16 @@ class UserQuery {
         this.service = service
     }
 
-    async requestProcessing (req , res){
-        const query = req.query
-        const result = await service.queryExcuation(query)
+    requestProcessing = async (req , res)=>{
+        const {searchvalue} = req.query
+        console.log(searchvalue);
+        
+        const result = await this.service.queryExecution(searchvalue)
+        console.log(result);
+        
         res.json({
             message:'excuation successfull'
         })
     }
 }
+module.exports = UserQuery
